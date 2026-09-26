@@ -1,0 +1,4 @@
+- [ ] Add student snapshots, group selection, medicine safety and stock cues to Quick Log.
+- [ ] Add flagged-room surveillance details on hover.
+- [ ] Use dated inventory batches, expiry details and earliest-expiry deduction.
+- [ ] Verify the visit-to-stock and dashboard flow.
