@@ -1,197 +1,115 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DEPARTMENTS,
-  SYMPTOMS,
-  SYMPTOM_MEDICINE,
-  useClinic,
-  type Symptom,
-} from "@/lib/clinic-data";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DEPARTMENTS, SYMPTOMS, SYMPTOM_MEDICINE, totalStock, useClinic, type Student, type Symptom } from "@/lib/clinic-data";
 
 export const Route = createFileRoute("/quick-log")({
-  head: () => ({
-    meta: [
-      { title: "Quick Log — PHINMA AU Clinic" },
-      { name: "description", content: "Log a student clinic visit in seconds with symptoms and dispensed medicine." },
-      { property: "og:title", content: "Quick Log — PHINMA AU Clinic" },
-      { property: "og:description", content: "Log a student clinic visit in seconds with symptoms and dispensed medicine." },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "Quick Log — PHINMA AU Clinic" },
+    { name: "description", content: "Log student clinic visits with medicine safety and stock checks." },
+    { property: "og:title", content: "Quick Log — PHINMA AU Clinic" },
+    { property: "og:description", content: "Log student clinic visits with medicine safety and stock checks." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: QuickLog,
 });
 
+function StudentSnapshot({ student }: { student: Student }) {
+  return <HoverCard openDelay={120}>
+    <HoverCardTrigger asChild><span tabIndex={0} className="cursor-help border-b border-dotted border-muted-foreground font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">{student.name}</span></HoverCardTrigger>
+    <HoverCardContent align="start" className="w-64 rounded-md border-border bg-popover p-3 text-xs shadow-none">
+      <p className="font-semibold text-foreground">{student.name} · {student.id}</p>
+      <p className="mt-2">Allergies: <span className={student.allergies === "None" ? "text-muted-foreground" : "font-semibold text-destructive"}>{student.allergies}</span></p>
+      <p>Chronic: {student.chronic}</p>
+      <p>Last Visit: {student.lastVisit}</p>
+    </HoverCardContent>
+  </HoverCard>;
+}
+
 function QuickLog() {
-  const { students, logVisit } = useClinic();
+  const { students, inventory, logVisits } = useClinic();
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Student[]>([]);
+  const [group, setGroup] = useState(false);
   const [department, setDepartment] = useState("");
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [medicines, setMedicines] = useState<string[]>([]);
 
-  const match = useMemo(
-    () =>
-      query.trim().length > 0
-        ? students.find(
-            (s) =>
-              s.name.toLowerCase().includes(query.trim().toLowerCase()) ||
-              s.id.includes(query.trim()),
-          )
-        : undefined,
-    [query, students],
-  );
+  const matches = useMemo(() => query.trim() ? students.filter((s) => !selected.some((v) => v.id === s.id) && (s.name.toLowerCase().includes(query.trim().toLowerCase()) || s.id.includes(query.trim()))).slice(0, 6) : [], [query, students, selected]);
+  const suggested = useMemo(() => Array.from(new Set(symptoms.flatMap((s) => SYMPTOM_MEDICINE[s]))), [symptoms]);
+  const caution = symptoms.includes("Stomachache") && medicines.includes("Mefenamic Acid");
+  const lowStock = medicines.map((name) => inventory.find((item) => item.name === name)).filter((item) => item && totalStock(item) < 10);
+  const insufficient = medicines.filter((name) => {
+    const item = inventory.find((stock) => stock.name === name);
+    return !item || totalStock(item) < selected.length;
+  });
 
-  const suggested = useMemo(
-    () => Array.from(new Set(symptoms.flatMap((s) => SYMPTOM_MEDICINE[s]))),
-    [symptoms],
-  );
-
-  function toggleSymptom(s: Symptom) {
-    setSymptoms((prev) => {
-      const next = prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s];
-      const auto = Array.from(new Set(next.flatMap((x) => SYMPTOM_MEDICINE[x])));
-      setMedicines((meds) =>
-        prev.includes(s) ? meds.filter((m) => auto.includes(m)) : Array.from(new Set([...meds, ...auto])),
-      );
-      return next;
-    });
+  function toggleSymptom(symptom: Symptom) {
+    const next = symptoms.includes(symptom) ? symptoms.filter((s) => s !== symptom) : [...symptoms, symptom];
+    setSymptoms(next);
+    const recommendations = Array.from(new Set(next.flatMap((s) => SYMPTOM_MEDICINE[s])));
+    setMedicines((prev) => Array.from(new Set([...prev.filter((m) => !SYMPTOM_MEDICINE[symptom].includes(m) || recommendations.includes(m)), ...(!symptoms.includes(symptom) ? SYMPTOM_MEDICINE[symptom] : [])])));
   }
 
   function submit() {
-    if (!query.trim() || !department || symptoms.length === 0) {
-      toast.error("Student, department and at least one symptom are required.");
+    if (!selected.length || !department || !symptoms.length) {
+      toast.error("Select students, a classroom and at least one symptom.");
       return;
     }
-    logVisit({
-      student: match?.name ?? query.trim(),
-      department,
-      symptoms,
-      medicines,
+    if (insufficient.length) {
+      toast.error(`Not enough stock: ${insufficient.join(", ")}.`);
+      return;
+    }
+    const success = logVisits(selected.map((student) => ({ student: student.name, department, symptoms, medicines })));
+    if (!success) { toast.error("Stock changed. Check available medicine and try again."); return; }
+    toast.success(`${selected.length} ${selected.length === 1 ? "visit" : "visits"} logged`, {
+      description: medicines.length ? `Dispensed ${selected.length} pc per medicine: ${medicines.join(", ")}` : "No medicine dispensed",
     });
-    toast.success(`Visit logged for ${match?.name ?? query.trim()}`, {
-      description: medicines.length ? `Dispensed: ${medicines.join(", ")}` : "No medicine dispensed",
-    });
-    setQuery("");
-    setDepartment("");
-    setSymptoms([]);
-    setMedicines([]);
+    setQuery(""); setSelected([]); setDepartment(""); setSymptoms([]); setMedicines([]);
   }
 
-  return (
-    <>
-      <PageHeader title="Quick Log" description="Ten-second clinic visit entry." />
-
-      <div className="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="space-y-5 rounded-md border border-border bg-card p-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="student">Student ID / Name</Label>
-            <HoverCard open={!!match}>
-              <HoverCardTrigger asChild>
-                <Input
-                  id="student"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Andrea Lim or 2026-0451"
-                  className="rounded-md"
-                />
-              </HoverCardTrigger>
-              {match && (
-                <HoverCardContent align="start" className="rounded-md text-xs">
-                  <p className="text-sm font-medium">
-                    {match.name} · {match.id}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Known Allergies: {match.allergies} | Last Visit: {match.lastVisit}
-                  </p>
-                  <p className="text-muted-foreground">Home room: {match.department}</p>
-                </HoverCardContent>
-              )}
-            </HoverCard>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Department / Classroom</Label>
-            <Select value={department} onValueChange={setDepartment}>
-              <SelectTrigger className="rounded-md">
-                <SelectValue placeholder="Select classroom" />
-              </SelectTrigger>
-              <SelectContent>
-                {DEPARTMENTS.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Symptoms</Label>
-            <div className="flex flex-wrap gap-2">
-              {SYMPTOMS.map((s) => {
-                const active = symptoms.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSymptom(s)}
-                    className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {suggested.length > 0 && (
-            <div className="space-y-2 rounded-md border border-border bg-secondary/60 p-3">
-              <Label>Dispense Medicine</Label>
-              {suggested.map((m) => (
-                <label key={m} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={medicines.includes(m)}
-                    onCheckedChange={(v) =>
-                      setMedicines((prev) => (v ? [...prev, m] : prev.filter((x) => x !== m)))
-                    }
-                  />
-                  {m} (1 pc)
-                </label>
-              ))}
-            </div>
-          )}
-
-          <Button className="w-full rounded-md" onClick={submit}>
-            Log Visit
-          </Button>
+  return <>
+    <PageHeader title="Quick Log" description="Ten-second clinic visit entry." />
+    <div className="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="space-y-5 rounded-md border border-border bg-card p-5">
+        <div className="flex items-center justify-between border-b border-border pb-4">
+          <Label htmlFor="group-log">Group Log</Label>
+          <Switch id="group-log" checked={group} onCheckedChange={(checked) => { setGroup(checked); setSelected((prev) => checked ? prev : prev.slice(0, 1)); }} />
         </div>
-
-        <aside className="h-fit rounded-md border border-border bg-card p-4 text-xs text-muted-foreground">
-          <p className="mb-2 text-sm font-semibold text-foreground">Entry tips</p>
-          <ul className="list-disc space-y-1 pl-4">
-            <li>Type a student name to preview allergies and last visit.</li>
-            <li>Symptom chips auto-check the standard medicine.</li>
-            <li>Logging deducts stock and updates the surveillance heatmap instantly.</li>
-          </ul>
-        </aside>
+        <div className="space-y-1.5">
+          <Label htmlFor="student">Student ID / Name</Label>
+          <Input id="student" autoComplete="off" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search student name or ID" className="rounded-md" />
+          {matches.length > 0 && <div className="rounded-md border border-border bg-popover p-1">
+            {matches.map((student) => <div key={student.id} className="flex items-center justify-between gap-2 px-2 py-1.5 text-sm hover:bg-secondary">
+              <StudentSnapshot student={student} />
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setSelected((prev) => group ? [...prev, student] : [student]); setQuery(""); if (!department) setDepartment(student.department); }}>Select <span className="sr-only">{student.name}</span></Button>
+            </div>)}
+          </div>}
+          {selected.length > 0 && <div className="flex flex-wrap gap-2 pt-1">{selected.map((student) => <div key={student.id} className="flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2 py-1 text-xs"><StudentSnapshot student={student} /><Button variant="ghost" size="icon" className="h-5 w-5" aria-label={`Remove ${student.name}`} onClick={() => setSelected((prev) => prev.filter((s) => s.id !== student.id))}><X className="h-3 w-3" /></Button></div>)}</div>}
+        </div>
+        <div className="space-y-1.5"><Label>Department / Classroom</Label><Select value={department} onValueChange={setDepartment}><SelectTrigger className="rounded-md"><SelectValue placeholder="Select classroom" /></SelectTrigger><SelectContent>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+        <div className="space-y-1.5"><Label>Symptoms</Label><div className="flex flex-wrap gap-2">{SYMPTOMS.map((symptom) => <Button key={symptom} type="button" size="sm" variant={symptoms.includes(symptom) ? "default" : "outline"} aria-pressed={symptoms.includes(symptom)} onClick={() => toggleSymptom(symptom)} className="rounded-md">{symptom}</Button>)}</div></div>
+        <div className="space-y-2">
+          <Label>Dispense Medicine</Label>
+          <Select value="" onValueChange={(name) => setMedicines((prev) => prev.includes(name) ? prev : [...prev, name])}><SelectTrigger className="rounded-md"><SelectValue placeholder="Select medicine" /></SelectTrigger><SelectContent>{inventory.map((item) => <SelectItem key={item.id} value={item.name} disabled={medicines.includes(item.name) || totalStock(item) === 0}>{item.name} · {totalStock(item)} pcs{suggested.includes(item.name) ? " · suggested" : ""}</SelectItem>)}</SelectContent></Select>
+          {medicines.length > 0 && <div className="flex flex-wrap gap-2">{medicines.map((name) => <div key={name} className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2 text-xs">{name} · 1 pc/student <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Remove ${name}`} onClick={() => setMedicines((prev) => prev.filter((m) => m !== name))}><X className="h-3 w-3" /></Button></div>)}</div>}
+          {lowStock.map((item) => item && <p key={item.id} className="text-xs font-medium text-warning">Low Stock: Only {totalStock(item)} remaining.</p>)}
+          {insufficient.length > 0 && selected.length > 0 && <p className="text-xs text-destructive">Not enough stock for {selected.length} students: {insufficient.join(", ")}</p>}
+        </div>
+        <div className="flex items-center gap-2"><Button className="flex-1 rounded-md" onClick={submit}>Log {group ? `${selected.length || ""} Visits` : "Visit"}</Button>{caution && <Tooltip><TooltipTrigger asChild><span tabIndex={0} role="img" aria-label="Medicine caution" className="inline-flex cursor-help text-warning outline-none focus-visible:ring-2 focus-visible:ring-ring"><AlertTriangle className="h-5 w-5" /></span></TooltipTrigger><TooltipContent className="max-w-60 rounded-md shadow-none">Caution: Mefenamic Acid is contraindicated for stomach pain.</TooltipContent></Tooltip>}</div>
       </div>
-    </>
-  );
+      <aside className="h-fit rounded-md border border-border bg-card p-4 text-xs text-muted-foreground"><p className="mb-2 text-sm font-semibold text-foreground">Entry tips</p><ul className="list-disc space-y-1 pl-4"><li>Search a student to review allergies and last visit.</li><li>Select Group Log for students with the same symptoms and medicine.</li><li>Each medicine uses one piece per student.</li></ul></aside>
+    </div>
+  </>;
 }
