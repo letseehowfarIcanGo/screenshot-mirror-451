@@ -11,6 +11,11 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { ClinicProvider } from "../lib/clinic-data";
+import { AppSidebar } from "../components/AppSidebar";
+import { TooltipProvider } from "../components/ui/tooltip";
+import { Toaster } from "../components/ui/sonner";
+
 
 function NotFoundComponent() {
   return (
@@ -77,15 +82,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "PHINMA AU Clinic — Health Surveillance" },
+      { name: "description", content: "Clinic visit logging, outbreak surveillance and medicine inventory for PHINMA AU." },
+      { name: "author", content: "PHINMA AU Clinic" },
+      { property: "og:title", content: "PHINMA AU Clinic — Health Surveillance" },
+      { property: "og:description", content: "Clinic visit logging, outbreak surveillance and medicine inventory for PHINMA AU." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
+
     links: [
       {
         rel: "stylesheet",
@@ -119,8 +124,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ClinicProvider>
+        <TooltipProvider delayDuration={120}>
+          <div className="min-h-screen bg-background">
+            <AppSidebar />
+            <main className="ml-60 min-h-screen">
+              {/* Required: nested routes render here. */}
+              <Outlet />
+            </main>
+          </div>
+          <Toaster position="top-right" />
+        </TooltipProvider>
+      </ClinicProvider>
     </QueryClientProvider>
   );
 }
+
