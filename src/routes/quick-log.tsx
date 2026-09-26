@@ -32,7 +32,7 @@ export const Route = createFileRoute("/quick-log")({
       { property: "og:description", content: "Log a student clinic visit in seconds with symptoms and dispensed medicine." },
     ],
   }),
-  component: QuickLog;
+  component: QuickLog,
 });
 
 function QuickLog() {
