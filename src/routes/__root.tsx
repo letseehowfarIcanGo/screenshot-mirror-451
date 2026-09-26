@@ -11,6 +11,11 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { ClinicProvider } from "../lib/clinic-data";
+import { AppSidebar } from "../components/AppSidebar";
+import { TooltipProvider } from "../components/ui/tooltip";
+import { Toaster } from "../components/ui/sonner";
+
 
 function NotFoundComponent() {
   return (
@@ -119,8 +124,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <ClinicProvider>
+        <TooltipProvider delayDuration={120}>
+          <div className="min-h-screen bg-background">
+            <AppSidebar />
+            <main className="ml-60 min-h-screen">
+              {/* Required: nested routes render here. */}
+              <Outlet />
+            </main>
+          </div>
+          <Toaster position="top-right" />
+        </TooltipProvider>
+      </ClinicProvider>
     </QueryClientProvider>
   );
 }
+
