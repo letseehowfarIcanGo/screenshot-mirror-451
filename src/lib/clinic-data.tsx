@@ -41,8 +41,9 @@ export type VisitLog = {
   id: string;
   student: string;
   department: string;
-  symptoms: Symptom[];
+  symptoms: string[];
   medicines: string[];
+  date: string; // ISO "YYYY-MM-DD"
   time: string;
 };
 
@@ -108,13 +109,24 @@ const INITIAL_INVENTORY: InventoryItem[] = [
   },
 ];
 
+function daysAgo(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 const INITIAL_LOGS: VisitLog[] = [
-  { id: "v1", student: "Andrea Lim", department: "BSIT2-SOUTH1", symptoms: ["Fever"], medicines: ["Paracetamol"], time: "08:14 AM" },
-  { id: "v2", student: "Miguel Santos", department: "BSIT2-SOUTH1", symptoms: ["Fever"], medicines: ["Paracetamol"], time: "09:02 AM" },
-  { id: "v3", student: "Joy Ramirez", department: "BSIT2-SOUTH1", symptoms: ["Fever"], medicines: ["Paracetamol"], time: "10:30 AM" },
-  { id: "v4", student: "Karl Dizon", department: "BSIT2-SOUTH1", symptoms: ["Headache"], medicines: ["Paracetamol"], time: "10:42 AM" },
-  { id: "v5", student: "Liza Cruz", department: "STEM11-A", symptoms: ["Dysmenorrhea"], medicines: ["Mefenamic Acid"], time: "09:20 AM" },
-  { id: "v6", student: "Paolo Reyes", department: "ABM11-C", symptoms: ["Wounds"], medicines: ["Povidone Iodine", "Sterile Gauze"], time: "11:05 AM" },
+  { id: "v1", student: "Andrea Lim", department: "BSIT2-SOUTH1", symptoms: ["Fever"], medicines: ["Paracetamol"], date: daysAgo(0), time: "08:14 AM" },
+  { id: "v2", student: "Miguel Santos", department: "BSIT2-SOUTH1", symptoms: ["Fever"], medicines: ["Paracetamol"], date: daysAgo(0), time: "09:02 AM" },
+  { id: "v3", student: "Joy Ramirez", department: "BSIT2-SOUTH1", symptoms: ["Fever"], medicines: ["Paracetamol"], date: daysAgo(0), time: "10:30 AM" },
+  { id: "v4", student: "Karl Dizon", department: "BSIT2-SOUTH1", symptoms: ["Headache"], medicines: ["Paracetamol"], date: daysAgo(0), time: "10:42 AM" },
+  { id: "v5", student: "Liza Cruz", department: "STEM11-A", symptoms: ["Dysmenorrhea"], medicines: ["Mefenamic Acid"], date: daysAgo(0), time: "09:20 AM" },
+  { id: "v6", student: "Paolo Reyes", department: "ABM11-C", symptoms: ["Wounds"], medicines: ["Povidone Iodine", "Sterile Gauze"], date: daysAgo(0), time: "11:05 AM" },
+  { id: "v7", student: "Maria Salazar", department: "BSIT2-SOUTH1", symptoms: ["Headache"], medicines: ["Paracetamol"], date: daysAgo(2), time: "01:15 PM" },
+  { id: "v8", student: "John Dela Cruz", department: "BSIT2-SOUTH1", symptoms: ["Stomachache"], medicines: ["Antacid"], date: daysAgo(4), time: "10:05 AM" },
+  { id: "v9", student: "Andrea Lim", department: "BSIT2-SOUTH1", symptoms: ["Headache"], medicines: ["Paracetamol"], date: daysAgo(6), time: "08:50 AM" },
+  { id: "v10", student: "Mark Torres", department: "BSIT2-SOUTH1", symptoms: ["Wounds"], medicines: ["Povidone Iodine"], date: daysAgo(12), time: "02:30 PM" },
+  { id: "v11", student: "Liza Cruz", department: "STEM11-A", symptoms: ["Dysmenorrhea"], medicines: ["Mefenamic Acid"], date: daysAgo(25), time: "09:40 AM" },
 ];
 
 export function totalStock(item: InventoryItem) {
@@ -172,8 +184,10 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           const item = inventory.find((stock) => stock.name === name);
           return !item || totalStock(item) < needed;
         })) return false;
-        const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        setLogs((prev) => [...inputs.map((input) => ({ ...input, id: crypto.randomUUID(), time })), ...prev]);
+        const now = new Date();
+        const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const date = now.toISOString().slice(0, 10);
+        setLogs((prev) => [...inputs.map((input) => ({ ...input, id: crypto.randomUUID(), date, time })), ...prev]);
         setInventory((prev) =>
           prev.map((item) => {
             const quantity = demand.get(item.name) ?? 0;

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as QuickLogRouteImport } from './routes/quick-log'
+import { Route as VisitHistoryRouteImport } from './routes/visit-history'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const QuickLogRoute = QuickLogRouteImport.update({
   path: '/quick-log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VisitHistoryRoute = VisitHistoryRouteImport.update({
+  id: '/visit-history',
+  path: '/visit-history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/quick-log': typeof QuickLogRoute
+  '/visit-history': typeof VisitHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/quick-log': typeof QuickLogRoute
+  '/visit-history': typeof VisitHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/quick-log': typeof QuickLogRoute
+  '/visit-history': typeof VisitHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/inventory' | '/quick-log'
+  fullPaths: '/' | '/inventory' | '/quick-log' | '/visit-history'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/inventory' | '/quick-log'
-  id: '__root__' | '/' | '/inventory' | '/quick-log'
+  to: '/' | '/inventory' | '/quick-log' | '/visit-history'
+  id: '__root__' | '/' | '/inventory' | '/quick-log' | '/visit-history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InventoryRoute: typeof InventoryRoute
   QuickLogRoute: typeof QuickLogRoute
+  VisitHistoryRoute: typeof VisitHistoryRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuickLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/visit-history': {
+      id: '/visit-history'
+      path: '/visit-history'
+      fullPath: '/visit-history'
+      preLoaderRoute: typeof VisitHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InventoryRoute: InventoryRoute,
   QuickLogRoute: QuickLogRoute,
+  VisitHistoryRoute: VisitHistoryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

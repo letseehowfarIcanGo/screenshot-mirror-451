@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, ClipboardPlus, Boxes, HeartPulse } from "lucide-react";
+import { Activity, ClipboardPlus, Boxes, HeartPulse, History } from "lucide-react";
 
 const items = [
   { title: "Dashboard", subtitle: "Surveillance", url: "/", icon: Activity },
   { title: "Quick Log", subtitle: "10-second entry", url: "/quick-log", icon: ClipboardPlus },
+  { title: "Visit History", subtitle: "Past visit archive", url: "/visit-history", icon: History },
   { title: "Inventory", subtitle: "Stock & batches", url: "/inventory", icon: Boxes },
 ] as const;
 
