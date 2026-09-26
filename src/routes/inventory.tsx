@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { stockStatus, totalStock, useClinic } from "@/lib/clinic-data";
+import { isExpiring, stockStatus, totalStock, useClinic } from "@/lib/clinic-data";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({
@@ -39,6 +39,8 @@ export const Route = createFileRoute("/inventory")({
       { title: "Inventory — PHINMA AU Clinic" },
       { name: "description", content: "Clinic medicine stock levels, batch expiry tracking and restocking." },
       { property: "og:title", content: "Inventory — PHINMA AU Clinic" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { property: "og:description", content: "Clinic medicine stock levels, batch expiry tracking and restocking." },
     ],
   }),
@@ -47,7 +49,7 @@ export const Route = createFileRoute("/inventory")({
 
 export function statusClass(status: string) {
   if (status === "Low") return "border-destructive text-destructive";
-  if (status === "Expiring") return "border-accent text-amber-600";
+   if (status === "Expiring") return "border-accent text-warning";
   return "border-border text-muted-foreground";
 }
 
@@ -64,8 +66,8 @@ function Inventory() {
       toast.error("Select an item, quantity and expiry date.");
       return;
     }
-    const label = new Date(expires).toLocaleDateString(undefined, { month: "short", year: "numeric" });
-    receiveStock(itemId, amount, label);
+    const label = new Date(`${expires}T00:00:00`).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+    receiveStock(itemId, amount, expires);
     toast.success(`Received ${amount} pcs`, { description: `Expires ${label}` });
     setOpen(false);
     setItemId("");
@@ -107,12 +109,12 @@ function Inventory() {
                     <TableCell>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Badge variant="outline" className={`rounded-md ${statusClass(status)}`}>
+                          <Badge tabIndex={0} variant="outline" className={`cursor-help rounded-md ${statusClass(status)}`}>
                             {status}
                           </Badge>
                         </TooltipTrigger>
-                        <TooltipContent>
-                          {item.batches.map((b) => `${b.code}: ${b.qty} pcs (Expires ${b.expires})`).join(" | ")}
+                        <TooltipContent className="max-w-72 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-none">
+                          <div className="space-y-1">{[...item.batches].sort((a, b) => a.expiry.localeCompare(b.expiry)).map((batch) => <p key={batch.batchId} className={isExpiring(batch) ? "font-medium text-destructive" : ""}>Batch {batch.batchId}: {batch.qty} pcs (Exp: {new Date(`${batch.expiry}T00:00:00`).toLocaleDateString(undefined, { month: "short", year: "numeric" })})</p>)}</div>
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>

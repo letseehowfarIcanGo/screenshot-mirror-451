@@ -27,7 +27,7 @@ export const DEPARTMENTS = [
   "BSED3-EAST1",
 ];
 
-export type Batch = { code: string; qty: number; expires: string };
+export type Batch = { batchId: string; qty: number; expiry: string };
 
 export type InventoryItem = {
   id: string;
@@ -51,14 +51,20 @@ export type Student = {
   name: string;
   department: string;
   allergies: string;
+  chronic: string;
   lastVisit: string;
 };
 
 const STUDENTS: Student[] = [
-  { id: "2026-0451", name: "Andrea Lim", department: "BSIT2-SOUTH1", allergies: "None", lastVisit: "Oct 12, 2026" },
-  { id: "2026-0122", name: "Miguel Santos", department: "STEM11-A", allergies: "Penicillin", lastVisit: "Sep 30, 2026" },
-  { id: "2026-0899", name: "Joy Ramirez", department: "ABM11-C", allergies: "None", lastVisit: "Aug 04, 2026" },
-  { id: "2026-0333", name: "Karl Dizon", department: "BSED3-EAST1", allergies: "Aspirin", lastVisit: "Oct 01, 2026" },
+  { id: "2026-0451", name: "Andrea Lim", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "2 days ago (Headache)" },
+  { id: "2026-0122", name: "Miguel Santos", department: "STEM11-A", allergies: "Penicillin", chronic: "None", lastVisit: "5 days ago (Fever)" },
+  { id: "2026-0899", name: "Joy Ramirez", department: "ABM11-C", allergies: "None", chronic: "None", lastVisit: "3 weeks ago (Wounds)" },
+  { id: "2026-0333", name: "Karl Dizon", department: "BSED3-EAST1", allergies: "Aspirin", chronic: "None", lastVisit: "1 week ago (Headache)" },
+  { id: "2026-0552", name: "Liza Cruz", department: "STEM11-A", allergies: "None", chronic: "None", lastVisit: "1 month ago (Dysmenorrhea)" },
+  { id: "2026-0610", name: "Paolo Reyes", department: "ABM11-C", allergies: "None", chronic: "None", lastVisit: "4 days ago (Wounds)" },
+  { id: "2026-0711", name: "John Dela Cruz", department: "BSIT2-SOUTH1", allergies: "None", chronic: "None", lastVisit: "None recorded" },
+  { id: "2026-0712", name: "Maria Salazar", department: "BSIT2-SOUTH1", allergies: "None", chronic: "None", lastVisit: "None recorded" },
+  { id: "2026-0713", name: "Mark Torres", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "None recorded" },
 ];
 
 const INITIAL_INVENTORY: InventoryItem[] = [
@@ -68,8 +74,8 @@ const INITIAL_INVENTORY: InventoryItem[] = [
     category: "Analgesic",
     lowThreshold: 60,
     batches: [
-      { code: "Batch A", qty: 50, expires: "Nov 2026" },
-      { code: "Batch B", qty: 200, expires: "Jan 2027" },
+      { batchId: "A", qty: 50, expiry: "2026-11-01" },
+      { batchId: "B", qty: 200, expiry: "2027-01-01" },
     ],
   },
   {
@@ -77,28 +83,28 @@ const INITIAL_INVENTORY: InventoryItem[] = [
     name: "Mefenamic Acid",
     category: "Analgesic",
     lowThreshold: 40,
-    batches: [{ code: "Batch A", qty: 28, expires: "Dec 2026" }],
+    batches: [{ batchId: "A", qty: 28, expiry: "2026-12-01" }],
   },
   {
     id: "antacid",
     name: "Antacid",
     category: "Gastro",
     lowThreshold: 30,
-    batches: [{ code: "Batch A", qty: 72, expires: "Mar 2027" }],
+    batches: [{ batchId: "A", qty: 72, expiry: "2027-03-01" }],
   },
   {
     id: "iodine",
     name: "Povidone Iodine",
     category: "Antiseptic",
     lowThreshold: 10,
-    batches: [{ code: "Batch A", qty: 12, expires: "Oct 2026" }],
+    batches: [{ batchId: "A", qty: 8, expiry: "2026-10-31" }],
   },
   {
     id: "gauze",
     name: "Sterile Gauze",
     category: "Supplies",
     lowThreshold: 25,
-    batches: [{ code: "Batch A", qty: 140, expires: "Jun 2028" }],
+    batches: [{ batchId: "A", qty: 140, expiry: "2028-06-01" }],
   },
 ];
 
@@ -115,18 +121,36 @@ export function totalStock(item: InventoryItem) {
   return item.batches.reduce((sum, b) => sum + b.qty, 0);
 }
 
+export function isExpiring(batch: Batch) {
+  const days = (Date.parse(`${batch.expiry}T00:00:00`) - Date.now()) / 86_400_000;
+  return batch.qty > 0 && days <= 60;
+}
+
 export function stockStatus(item: InventoryItem): "Good" | "Low" | "Expiring" {
   if (totalStock(item) <= item.lowThreshold) return "Low";
-  if (item.batches.some((b) => b.expires.includes("2026"))) return "Expiring";
+  if (item.batches.some(isExpiring)) return "Expiring";
   return "Good";
+}
+
+export function deductBatches(batches: Batch[], quantity: number): Batch[] {
+  let remaining = quantity;
+  const result = batches.map((batch) => ({ ...batch }));
+  // Consume earliest expiry first, even when batches arrived out of date order.
+  for (const batch of [...result].sort((a, b) => a.expiry.localeCompare(b.expiry))) {
+    const taken = Math.min(batch.qty, remaining);
+    batch.qty -= taken;
+    remaining -= taken;
+    if (remaining === 0) break;
+  }
+  return result;
 }
 
 type ClinicContextValue = {
   inventory: InventoryItem[];
   logs: VisitLog[];
   students: Student[];
-  logVisit: (input: Omit<VisitLog, "id" | "time">) => void;
-  receiveStock: (itemId: string, qty: number, expires: string) => void;
+  logVisits: (inputs: Omit<VisitLog, "id" | "time">[]) => boolean;
+  receiveStock: (itemId: string, qty: number, expiry: string) => void;
 };
 
 const ClinicContext = createContext<ClinicContextValue | null>(null);
@@ -140,24 +164,25 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       inventory,
       logs,
       students: STUDENTS,
-      logVisit: (input) => {
+      logVisits: (inputs) => {
+        if (!inputs.length) return false;
+        const demand = new Map<string, number>();
+        inputs.forEach((input) => input.medicines.forEach((medicine) => demand.set(medicine, (demand.get(medicine) ?? 0) + 1)));
+        if ([...demand].some(([name, needed]) => {
+          const item = inventory.find((stock) => stock.name === name);
+          return !item || totalStock(item) < needed;
+        })) return false;
         const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        setLogs((prev) => [{ ...input, id: crypto.randomUUID(), time }, ...prev]);
+        setLogs((prev) => [...inputs.map((input) => ({ ...input, id: crypto.randomUUID(), time })), ...prev]);
         setInventory((prev) =>
           prev.map((item) => {
-            if (!input.medicines.includes(item.name)) return item;
-            let remaining = 1;
-            const batches = item.batches.map((b) => {
-              if (remaining <= 0) return b;
-              const take = Math.min(b.qty, remaining);
-              remaining -= take;
-              return { ...b, qty: b.qty - take };
-            });
-            return { ...item, batches };
+            const quantity = demand.get(item.name) ?? 0;
+            return quantity ? { ...item, batches: deductBatches(item.batches, quantity) } : item;
           }),
         );
+        return true;
       },
-      receiveStock: (itemId, qty, expires) => {
+      receiveStock: (itemId, qty, expiry) => {
         setInventory((prev) =>
           prev.map((item) =>
             item.id === itemId
@@ -165,7 +190,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                   ...item,
                   batches: [
                     ...item.batches,
-                    { code: `Batch ${String.fromCharCode(65 + item.batches.length)}`, qty, expires },
+                    { batchId: String.fromCharCode(65 + item.batches.length), qty, expiry },
                   ],
                 }
               : item,

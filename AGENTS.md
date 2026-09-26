@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep clinic mock visits and inventory together in the shared client provider; this keeps dashboard, logging, and stock changes synchronized within a preview session.
+- Store each inventory batch with an ISO expiry date and derive stock totals from quantities; this makes expiry comparisons and earliest-expiry dispensing reliable.

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,8 @@ export const Route = createFileRoute("/")({
         content: "Daily visit counts, classroom outbreak heatmap and low-stock alerts for the campus clinic.",
       },
       { property: "og:title", content: "Dashboard — PHINMA AU Clinic Surveillance" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content: "Daily visit counts, classroom outbreak heatmap and low-stock alerts for the campus clinic.",
@@ -49,6 +52,7 @@ function Dashboard() {
         counts,
         flagged,
         lastVisit: roomLogs[0]?.time ?? "—",
+        affected: [...new Set(roomLogs.map((log) => log.student))],
       };
     });
   }, [logs]);
@@ -90,11 +94,11 @@ function Dashboard() {
           Classroom Heatmap
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {rooms.map((room) => (
-            <Tooltip key={room.dept}>
-              <TooltipTrigger asChild>
+          {rooms.map((room) => {
+            const content = (
                 <div
-                  className={`rounded-md border bg-card p-3 text-left ${
+                  tabIndex={room.flagged ? 0 : undefined}
+                  className={`rounded-md border bg-card p-3 text-left outline-none transition-colors hover:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-ring ${
                     room.flagged ? "border-accent" : "border-border"
                   }`}
                 >
@@ -116,16 +120,16 @@ function Dashboard() {
                     )}
                   </div>
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                {room.cases} Active Cases | Symptoms:{" "}
-                {Object.entries(room.counts)
-                  .map(([s, c]) => `${c} ${s}`)
-                  .join(", ") || "none"}{" "}
-                | Last visit: Today, {room.lastVisit}
-              </TooltipContent>
-            </Tooltip>
-          ))}
+            );
+            return room.flagged ? <HoverCard key={room.dept} openDelay={120}>
+              <HoverCardTrigger asChild>{content}</HoverCardTrigger>
+              <HoverCardContent align="start" className="w-72 rounded-md border-border bg-popover p-3 text-xs shadow-none">
+                <p className="font-semibold text-foreground">{room.dept}</p>
+                <p className="mt-1">Trend: {room.cases} cases in 3 days (Spiking)</p>
+                <p className="mt-1">Affected Students: {room.affected.map((name) => name.split(" ").map((part, index) => index === 0 ? part : `${part[0]}.`).join(" ")).join(", ")}</p>
+              </HoverCardContent>
+            </HoverCard> : <Tooltip key={room.dept}><TooltipTrigger asChild>{content}</TooltipTrigger><TooltipContent className="rounded-md shadow-none">{room.cases} cases · Last visit: {room.lastVisit}</TooltipContent></Tooltip>;
+          })}
         </div>
 
         <h2 className="mt-6 mb-2 text-sm font-semibold tracking-tight text-foreground">Recent Visits</h2>
