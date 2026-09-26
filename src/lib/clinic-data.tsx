@@ -62,6 +62,9 @@ const STUDENTS: Student[] = [
   { id: "2026-0333", name: "Karl Dizon", department: "BSED3-EAST1", allergies: "Aspirin", chronic: "None", lastVisit: "1 week ago (Headache)" },
   { id: "2026-0552", name: "Liza Cruz", department: "STEM11-A", allergies: "None", chronic: "None", lastVisit: "1 month ago (Dysmenorrhea)" },
   { id: "2026-0610", name: "Paolo Reyes", department: "ABM11-C", allergies: "None", chronic: "None", lastVisit: "4 days ago (Wounds)" },
+  { id: "2026-0711", name: "John Dela Cruz", department: "BSIT2-SOUTH1", allergies: "None", chronic: "None", lastVisit: "None recorded" },
+  { id: "2026-0712", name: "Maria Salazar", department: "BSIT2-SOUTH1", allergies: "None", chronic: "None", lastVisit: "None recorded" },
+  { id: "2026-0713", name: "Mark Torres", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "None recorded" },
 ];
 
 const INITIAL_INVENTORY: InventoryItem[] = [
