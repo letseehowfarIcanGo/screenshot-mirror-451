@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Users, PackageMinus, FileText } from "lucide-react";
 
@@ -87,7 +87,39 @@ function Dashboard() {
             icon={<AlertTriangle className="h-4 w-4 text-accent" />}
             alert={outbreaks.length > 0}
           />
-          <Kpi label="Items Low on Stock" value={lowStock.length} icon={<PackageMinus className="h-4 w-4" />} />
+          <HoverCard openDelay={120}>
+            <HoverCardTrigger asChild>
+              <Link
+                to="/inventory"
+                className="block cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="View low stock items in inventory"
+              >
+                <div className={`rounded-md border bg-card p-4 transition-colors hover:bg-secondary/50 ${lowStock.length > 0 ? "border-accent" : "border-border"}`}>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span className="text-xs uppercase tracking-wide">Items Low on Stock</span>
+                    <PackageMinus className="h-4 w-4" />
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{lowStock.length}</p>
+                </div>
+              </Link>
+            </HoverCardTrigger>
+            <HoverCardContent align="start" className="w-64 rounded-md border-border bg-popover p-3 text-xs shadow-none">
+              <p className="font-semibold text-foreground">Low Stock Items</p>
+              {lowStock.length === 0 ? (
+                <p className="mt-1 text-muted-foreground">All items are sufficiently stocked.</p>
+              ) : (
+                <ul className="mt-1 space-y-1">
+                  {lowStock.map((item) => (
+                    <li key={item.id} className="flex justify-between border-b border-border pb-1 last:border-0">
+                      <span>{item.name}</span>
+                      <span className="font-medium text-warning">{totalStock(item)} remaining</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-muted-foreground">Click to open Inventory.</p>
+            </HoverCardContent>
+          </HoverCard>
         </div>
 
         <h2 className="mt-6 mb-2 text-sm font-semibold tracking-tight text-foreground">

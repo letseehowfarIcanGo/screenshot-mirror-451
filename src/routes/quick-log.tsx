@@ -44,6 +44,8 @@ function QuickLog() {
   const [group, setGroup] = useState(false);
   const [department, setDepartment] = useState("");
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
+  const [otherActive, setOtherActive] = useState(false);
+  const [otherText, setOtherText] = useState("");
   const [medicines, setMedicines] = useState<string[]>([]);
 
   const matches = useMemo(() => query.trim() ? students.filter((s) => !selected.some((v) => v.id === s.id) && (s.name.toLowerCase().includes(query.trim().toLowerCase()) || s.id.includes(query.trim()))).slice(0, 6) : [], [query, students, selected]);
@@ -63,7 +65,9 @@ function QuickLog() {
   }
 
   function submit() {
-    if (!selected.length || !department || !symptoms.length) {
+    const custom = otherActive ? otherText.trim() : "";
+    const finalSymptoms = custom ? [...symptoms, custom] : symptoms;
+    if (!selected.length || !department || !finalSymptoms.length) {
       toast.error("Select students, a classroom and at least one symptom.");
       return;
     }
@@ -71,12 +75,12 @@ function QuickLog() {
       toast.error(`Not enough stock: ${insufficient.join(", ")}.`);
       return;
     }
-    const success = logVisits(selected.map((student) => ({ student: student.name, department, symptoms, medicines })));
+    const success = logVisits(selected.map((student) => ({ student: student.name, department, symptoms: finalSymptoms, medicines })));
     if (!success) { toast.error("Stock changed. Check available medicine and try again."); return; }
     toast.success(`${selected.length} ${selected.length === 1 ? "visit" : "visits"} logged`, {
       description: medicines.length ? `Dispensed ${selected.length} pc per medicine: ${medicines.join(", ")}` : "No medicine dispensed",
     });
-    setQuery(""); setSelected([]); setDepartment(""); setSymptoms([]); setMedicines([]);
+    setQuery(""); setSelected([]); setDepartment(""); setSymptoms([]); setMedicines([]); setOtherActive(false); setOtherText("");
   }
 
   return <>
@@ -99,7 +103,9 @@ function QuickLog() {
           {selected.length > 0 && <div className="flex flex-wrap gap-2 pt-1">{selected.map((student) => <div key={student.id} className="flex items-center gap-1.5 rounded-md border border-border bg-secondary px-2 py-1 text-xs"><StudentSnapshot student={student} /><Button variant="ghost" size="icon" className="h-5 w-5" aria-label={`Remove ${student.name}`} onClick={() => setSelected((prev) => prev.filter((s) => s.id !== student.id))}><X className="h-3 w-3" /></Button></div>)}</div>}
         </div>
         <div className="space-y-1.5"><Label>Department / Classroom</Label><Select value={department} onValueChange={setDepartment}><SelectTrigger className="rounded-md"><SelectValue placeholder="Select classroom" /></SelectTrigger><SelectContent>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5"><Label>Symptoms</Label><div className="flex flex-wrap gap-2">{SYMPTOMS.map((symptom) => <Button key={symptom} type="button" size="sm" variant={symptoms.includes(symptom) ? "default" : "outline"} aria-pressed={symptoms.includes(symptom)} onClick={() => toggleSymptom(symptom)} className="rounded-md">{symptom}</Button>)}</div></div>
+        <div className="space-y-1.5"><Label>Symptoms</Label><div className="flex flex-wrap gap-2">{SYMPTOMS.map((symptom) => <Button key={symptom} type="button" size="sm" variant={symptoms.includes(symptom) ? "default" : "outline"} aria-pressed={symptoms.includes(symptom)} onClick={() => toggleSymptom(symptom)} className="rounded-md">{symptom}</Button>)}<Button type="button" size="sm" variant={otherActive ? "default" : "outline"} aria-pressed={otherActive} aria-expanded={otherActive} onClick={() => setOtherActive((prev) => !prev)} className="rounded-md">+ Other</Button></div>
+          {otherActive && <Input autoFocus value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Enter specific symptom or concern..." className="mt-2 rounded-md" aria-label="Custom symptom" maxLength={80} />}
+        </div>
         <div className="space-y-2">
           <Label>Dispense Medicine</Label>
           <Select value="" onValueChange={(name) => setMedicines((prev) => prev.includes(name) ? prev : [...prev, name])}><SelectTrigger className="rounded-md"><SelectValue placeholder="Select medicine" /></SelectTrigger><SelectContent>{inventory.map((item) => <SelectItem key={item.id} value={item.name} disabled={medicines.includes(item.name) || totalStock(item) === 0}>{item.name} · {totalStock(item)} pcs{suggested.includes(item.name) ? " · suggested" : ""}</SelectItem>)}</SelectContent></Select>
