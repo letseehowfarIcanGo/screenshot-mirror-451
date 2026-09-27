@@ -44,6 +44,8 @@ function QuickLog() {
   const [group, setGroup] = useState(false);
   const [department, setDepartment] = useState("");
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
+  const [otherActive, setOtherActive] = useState(false);
+  const [otherText, setOtherText] = useState("");
   const [medicines, setMedicines] = useState<string[]>([]);
 
   const matches = useMemo(() => query.trim() ? students.filter((s) => !selected.some((v) => v.id === s.id) && (s.name.toLowerCase().includes(query.trim().toLowerCase()) || s.id.includes(query.trim()))).slice(0, 6) : [], [query, students, selected]);
@@ -63,7 +65,9 @@ function QuickLog() {
   }
 
   function submit() {
-    if (!selected.length || !department || !symptoms.length) {
+    const custom = otherActive ? otherText.trim() : "";
+    const finalSymptoms = custom ? [...symptoms, custom] : symptoms;
+    if (!selected.length || !department || !finalSymptoms.length) {
       toast.error("Select students, a classroom and at least one symptom.");
       return;
     }
