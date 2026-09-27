@@ -161,7 +161,7 @@ type ClinicContextValue = {
   inventory: InventoryItem[];
   logs: VisitLog[];
   students: Student[];
-  logVisits: (inputs: Omit<VisitLog, "id" | "time">[]) => boolean;
+  logVisits: (inputs: Omit<VisitLog, "id" | "date" | "time">[]) => boolean;
   receiveStock: (itemId: string, qty: number, expiry: string) => void;
 };
 
