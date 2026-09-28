@@ -208,15 +208,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const newLogs = inputs.map((input) => ({ ...input, id: crypto.randomUUID(), date, time }));
         setLogs((prev) => [...newLogs, ...prev]);
         const takes: BatchTake[] = [];
-        setInventory((prev) =>
-          prev.map((item) => {
-            const quantity = demand.get(item.name) ?? 0;
-            if (!quantity) return item;
-            const result = deductBatchesTracked(item.batches, quantity);
-            result.takes.forEach((t) => takes.push({ itemId: item.id, batchId: t.batchId, qty: t.qty }));
-            return { ...item, batches: result.batches };
-          }),
-        );
+        const nextInventory = inventory.map((item) => {
+          const quantity = demand.get(item.name) ?? 0;
+          if (!quantity) return item;
+          const result = deductBatchesTracked(item.batches, quantity);
+          result.takes.forEach((t) => takes.push({ itemId: item.id, batchId: t.batchId, qty: t.qty }));
+          return { ...item, batches: result.batches };
+        });
+        setInventory(nextInventory);
         return { logIds: newLogs.map((l) => l.id), takes };
       },
       undoVisits: (token) => {
