@@ -54,9 +54,10 @@ export type Student = {
   allergies: string;
   chronic: string;
   lastVisit: string;
+  photoUrl: string;
 };
 
-const STUDENTS: Student[] = [
+const RAW_STUDENTS: Omit<Student, "photoUrl">[] = [
   { id: "2026-0451", name: "Andrea Lim", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "2 days ago (Headache)" },
   { id: "2026-0122", name: "Miguel Santos", department: "STEM11-A", allergies: "Penicillin", chronic: "None", lastVisit: "5 days ago (Fever)" },
   { id: "2026-0899", name: "Joy Ramirez", department: "ABM11-C", allergies: "None", chronic: "None", lastVisit: "3 weeks ago (Wounds)" },
@@ -67,6 +68,9 @@ const STUDENTS: Student[] = [
   { id: "2026-0712", name: "Maria Salazar", department: "BSIT2-SOUTH1", allergies: "None", chronic: "None", lastVisit: "None recorded" },
   { id: "2026-0713", name: "Mark Torres", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "None recorded" },
 ];
+
+const STUDENTS: Student[] = RAW_STUDENTS.map((s) => ({ ...s, photoUrl: `https://i.pravatar.cc/150?u=${s.id}` }));
+
 
 const INITIAL_INVENTORY: InventoryItem[] = [
   {
@@ -144,24 +148,38 @@ export function stockStatus(item: InventoryItem): "Good" | "Low" | "Expiring" {
   return "Good";
 }
 
-export function deductBatches(batches: Batch[], quantity: number): Batch[] {
+export type BatchTake = { itemId: string; batchId: string; qty: number };
+
+export function deductBatchesTracked(batches: Batch[], quantity: number): { batches: Batch[]; takes: { batchId: string; qty: number }[] } {
   let remaining = quantity;
   const result = batches.map((batch) => ({ ...batch }));
+  const takes: { batchId: string; qty: number }[] = [];
   // Consume earliest expiry first, even when batches arrived out of date order.
   for (const batch of [...result].sort((a, b) => a.expiry.localeCompare(b.expiry))) {
     const taken = Math.min(batch.qty, remaining);
-    batch.qty -= taken;
-    remaining -= taken;
+    if (taken > 0) {
+      batch.qty -= taken;
+      remaining -= taken;
+      takes.push({ batchId: batch.batchId, qty: taken });
+    }
     if (remaining === 0) break;
   }
-  return result;
+  return { batches: result, takes };
 }
+
+export function deductBatches(batches: Batch[], quantity: number): Batch[] {
+  return deductBatchesTracked(batches, quantity).batches;
+}
+
+
+export type UndoToken = { logIds: string[]; takes: BatchTake[] };
 
 type ClinicContextValue = {
   inventory: InventoryItem[];
   logs: VisitLog[];
   students: Student[];
-  logVisits: (inputs: Omit<VisitLog, "id" | "date" | "time">[]) => boolean;
+  logVisits: (inputs: Omit<VisitLog, "id" | "date" | "time">[]) => UndoToken | null;
+  undoVisits: (token: UndoToken) => void;
   receiveStock: (itemId: string, qty: number, expiry: string) => void;
 };
 
@@ -177,25 +195,46 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       logs,
       students: STUDENTS,
       logVisits: (inputs) => {
-        if (!inputs.length) return false;
+        if (!inputs.length) return null;
         const demand = new Map<string, number>();
         inputs.forEach((input) => input.medicines.forEach((medicine) => demand.set(medicine, (demand.get(medicine) ?? 0) + 1)));
         if ([...demand].some(([name, needed]) => {
           const item = inventory.find((stock) => stock.name === name);
           return !item || totalStock(item) < needed;
-        })) return false;
+        })) return null;
         const now = new Date();
         const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         const date = now.toISOString().slice(0, 10);
-        setLogs((prev) => [...inputs.map((input) => ({ ...input, id: crypto.randomUUID(), date, time })), ...prev]);
+        const newLogs = inputs.map((input) => ({ ...input, id: crypto.randomUUID(), date, time }));
+        setLogs((prev) => [...newLogs, ...prev]);
+        const takes: BatchTake[] = [];
+        const nextInventory = inventory.map((item) => {
+          const quantity = demand.get(item.name) ?? 0;
+          if (!quantity) return item;
+          const result = deductBatchesTracked(item.batches, quantity);
+          result.takes.forEach((t) => takes.push({ itemId: item.id, batchId: t.batchId, qty: t.qty }));
+          return { ...item, batches: result.batches };
+        });
+        setInventory(nextInventory);
+        return { logIds: newLogs.map((l) => l.id), takes };
+      },
+      undoVisits: (token) => {
+        setLogs((prev) => prev.filter((log) => !token.logIds.includes(log.id)));
         setInventory((prev) =>
           prev.map((item) => {
-            const quantity = demand.get(item.name) ?? 0;
-            return quantity ? { ...item, batches: deductBatches(item.batches, quantity) } : item;
+            const restores = token.takes.filter((t) => t.itemId === item.id);
+            if (!restores.length) return item;
+            return {
+              ...item,
+              batches: item.batches.map((batch) => {
+                const back = restores.filter((r) => r.batchId === batch.batchId).reduce((sum, r) => sum + r.qty, 0);
+                return back ? { ...batch, qty: batch.qty + back } : batch;
+              }),
+            };
           }),
         );
-        return true;
       },
+
       receiveStock: (itemId, qty, expiry) => {
         setInventory((prev) =>
           prev.map((item) =>

@@ -151,3 +151,29 @@
     color: var(--color-foreground);
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .print-slip,
+  .print-slip * {
+    visibility: visible;
+  }
+
+  .print-slip {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: 80mm;
+    max-width: 100%;
+    transform: none !important;
+    border: none;
+    box-shadow: none;
+  }
+
+  .print-slip .no-print,
+  .print-slip [data-radix-dialog-close] {
+    display: none !important;
+  }
+}
