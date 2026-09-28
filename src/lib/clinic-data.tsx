@@ -148,18 +148,29 @@ export function stockStatus(item: InventoryItem): "Good" | "Low" | "Expiring" {
   return "Good";
 }
 
-export function deductBatches(batches: Batch[], quantity: number): Batch[] {
+export type BatchTake = { itemId: string; batchId: string; qty: number };
+
+export function deductBatchesTracked(batches: Batch[], quantity: number): { batches: Batch[]; takes: { batchId: string; qty: number }[] } {
   let remaining = quantity;
   const result = batches.map((batch) => ({ ...batch }));
+  const takes: { batchId: string; qty: number }[] = [];
   // Consume earliest expiry first, even when batches arrived out of date order.
   for (const batch of [...result].sort((a, b) => a.expiry.localeCompare(b.expiry))) {
     const taken = Math.min(batch.qty, remaining);
-    batch.qty -= taken;
-    remaining -= taken;
+    if (taken > 0) {
+      batch.qty -= taken;
+      remaining -= taken;
+      takes.push({ batchId: batch.batchId, qty: taken });
+    }
     if (remaining === 0) break;
   }
-  return result;
+  return { batches: result, takes };
 }
+
+export function deductBatches(batches: Batch[], quantity: number): Batch[] {
+  return deductBatchesTracked(batches, quantity).batches;
+}
+
 
 type ClinicContextValue = {
   inventory: InventoryItem[];
