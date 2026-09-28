@@ -54,9 +54,10 @@ export type Student = {
   allergies: string;
   chronic: string;
   lastVisit: string;
+  photoUrl: string;
 };
 
-const STUDENTS: Student[] = [
+const RAW_STUDENTS: Omit<Student, "photoUrl">[] = [
   { id: "2026-0451", name: "Andrea Lim", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "2 days ago (Headache)" },
   { id: "2026-0122", name: "Miguel Santos", department: "STEM11-A", allergies: "Penicillin", chronic: "None", lastVisit: "5 days ago (Fever)" },
   { id: "2026-0899", name: "Joy Ramirez", department: "ABM11-C", allergies: "None", chronic: "None", lastVisit: "3 weeks ago (Wounds)" },
@@ -67,6 +68,9 @@ const STUDENTS: Student[] = [
   { id: "2026-0712", name: "Maria Salazar", department: "BSIT2-SOUTH1", allergies: "None", chronic: "None", lastVisit: "None recorded" },
   { id: "2026-0713", name: "Mark Torres", department: "BSIT2-SOUTH1", allergies: "None", chronic: "Asthma", lastVisit: "None recorded" },
 ];
+
+const STUDENTS: Student[] = RAW_STUDENTS.map((s) => ({ ...s, photoUrl: `https://i.pravatar.cc/150?u=${s.id}` }));
+
 
 const INITIAL_INVENTORY: InventoryItem[] = [
   {
