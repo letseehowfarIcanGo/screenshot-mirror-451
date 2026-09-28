@@ -49,6 +49,8 @@ function VisitHistory() {
   const { logs } = useClinic();
   const [range, setRange] = useState<Range>("week");
   const [query, setQuery] = useState("");
+  const [slip, setSlip] = useState<VisitLog | null>(null);
+
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
